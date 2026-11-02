@@ -380,6 +380,121 @@ ${result.text || ""}
 }
 
 // ==========================================
+// GET AVAILABLE SOURCES
+// ==========================================
+
+function getAvailableSources(tenantId) {
+    tenantId = validateTenantId(tenantId);
+
+    const documents = getDocuments(tenantId)
+        .filter(doc => doc.tenantId === tenantId);
+
+    const sources = [
+        ...new Set(
+            documents
+                .map(doc => doc.source)
+                .filter(Boolean)
+        )
+    ];
+
+    return sources;
+}
+
+// ==========================================
+// GENERAL CAPABILITY QUESTIONS
+// ==========================================
+
+function getCapabilityResponse(question, tenantId) {
+    const text = question.toLowerCase().trim();
+
+    const capabilityPatterns = [
+        /^how can you help me\??$/,
+        /^what can you do\??$/,
+        /^how do you work\??$/,
+        /^what are your capabilities\??$/,
+        /^what can i ask you\??$/
+    ];
+
+    const isCapabilityQuestion =
+        capabilityPatterns.some(pattern =>
+            pattern.test(text)
+        );
+
+    if (isCapabilityQuestion) {
+        return `I can help you find and understand information
+from the documents available in my knowledge base.
+
+Here are some things you can ask me:
+
+- **Find information:** Ask questions about projects,
+  products, services, and business activities.
+- **Summarize documents:** Get concise summaries of
+  information available in the documents.
+- **Extract details:** Find specific dates, names,
+  project details, and other information.
+- **Compare information:** Compare details across
+  different documents when the documents support it.
+- **Answer follow-up questions:** Ask additional
+  questions about information discussed earlier.
+
+For example, you can ask:
+
+- What information is available about L&T projects?
+- Which countries are mentioned in the projects?
+- What contracts has L&T received?
+- Give me a summary of the Heavy Engineering business.
+
+I will base document-related answers only on the
+information available in my knowledge base.`;
+    }
+
+    // ======================================
+    // WHAT INFORMATION DO YOU HAVE?
+    // ======================================
+
+    const informationPatterns = [
+        /^what information do you have\??$/,
+        /^what documents do you have\??$/,
+        /^what is available in your knowledge base\??$/,
+        /^which documents are available\??$/
+    ];
+
+    const isInformationQuestion =
+        informationPatterns.some(pattern =>
+            pattern.test(text)
+        );
+
+    if (isInformationQuestion) {
+        const availableSources =
+            getAvailableSources(tenantId);
+
+        if (availableSources.length === 0) {
+            return "There are currently no indexed documents available for your account.";
+        }
+
+        const sourceList = availableSources
+            .slice(0, 15)
+            .map(source => `- ${source}`)
+            .join("\n");
+
+        const remaining =
+            availableSources.length > 15
+                ? `\n\nAnd ${availableSources.length - 15} more sources.`
+                : "";
+
+        return `I can search the following indexed sources:
+
+${sourceList}${remaining}
+
+You can ask me to search, summarize, or extract information from these sources.
+
+Note: This is a list of available source names, not a complete summary of their contents.`;
+    }
+
+    return null;
+}
+
+// ==========================================
 // SYSTEM PROMPT
 // ==========================================
 
@@ -388,12 +503,6 @@ You are a strict document-grounded AI assistant.
 
 Your ONLY source of factual information is the DOCUMENT CONTEXT
 provided below.
-
-You may receive information from:
-- Uploaded documents.
-- PDFs.
-- Website pages.
-- Content extracted from website sitemaps.
 
 STRICT SOURCE RULES:
 
@@ -486,7 +595,27 @@ async function askRAG(
     console.log("Original question:", trimmedQuestion);
 
     // ======================================
-    // STEP 1: UNDERSTAND FOLLOW-UP QUESTION
+    // STEP 1: HANDLE CAPABILITY QUESTIONS
+    // ======================================
+
+    const capabilityResponse =
+        getCapabilityResponse(trimmedQuestion, tenantId);
+
+    if (capabilityResponse) {
+        console.log("General capability question detected.");
+
+        if (typeof onToken === "function") {
+            onToken(capabilityResponse);
+        }
+
+        return {
+            answer: capabilityResponse,
+            sources: []
+        };
+    }
+
+    // ======================================
+    // STEP 2: UNDERSTAND FOLLOW-UP QUESTION
     // ======================================
 
     const standaloneQuestion =
@@ -498,14 +627,14 @@ async function askRAG(
     console.log("Question used for retrieval:", standaloneQuestion);
 
     // ======================================
-    // STEP 2: CREATE QUESTION EMBEDDING
+    // STEP 3: CREATE QUESTION EMBEDDING
     // ======================================
 
     const queryEmbedding =
         await createEmbedding(standaloneQuestion);
 
     // ======================================
-    // STEP 3: TENANT-AWARE DOCUMENT SEARCH
+    // STEP 4: TENANT-AWARE DOCUMENT SEARCH
     // ======================================
 
     const searchResults = searchSimilar(
@@ -517,7 +646,7 @@ async function askRAG(
     );
 
     // ======================================
-    // STEP 4: RETRIEVAL DEBUG LOGS
+    // STEP 5: RETRIEVAL DEBUG LOGS
     // ======================================
 
     console.log("\n========== RETRIEVAL DEBUG ==========");
@@ -536,7 +665,7 @@ async function askRAG(
     );
 
     // ======================================
-    // STEP 5: RELEVANCE FILTER
+    // STEP 6: RELEVANCE FILTER
     // ======================================
 
     const relevantResults = searchResults.filter(
@@ -552,7 +681,7 @@ async function askRAG(
     );
 
     // ======================================
-    // STEP 6: HANDLE NO RELEVANT DOCUMENTS
+    // STEP 7: HANDLE NO RELEVANT DOCUMENTS
     // ======================================
 
     if (relevantResults.length === 0) {
@@ -569,7 +698,7 @@ async function askRAG(
     }
 
     // ======================================
-    // STEP 7: GET NEIGHBORING CHUNKS
+    // STEP 8: GET NEIGHBORING CHUNKS
     // ======================================
 
     const contextResults = getNeighboringChunks(
@@ -591,7 +720,7 @@ async function askRAG(
     }
 
     // ======================================
-    // STEP 8: BUILD DOCUMENT CONTEXT
+    // STEP 9: BUILD DOCUMENT CONTEXT
     // ======================================
 
     const context = buildContext(contextResults);
@@ -602,7 +731,7 @@ async function askRAG(
     );
 
     // ======================================
-    // STEP 9: BUILD GENERATION MESSAGES
+    // STEP 10: BUILD GENERATION MESSAGES
     // ======================================
 
     // Previous conversation messages are deliberately
@@ -623,7 +752,7 @@ async function askRAG(
     ];
 
     // ======================================
-    // STEP 10: OLLAMA GENERATION
+    // STEP 11: OLLAMA GENERATION
     // ======================================
 
     const shouldStream =
@@ -648,7 +777,7 @@ async function askRAG(
     let answer = "";
 
     // ======================================
-    // STEP 11: STREAM OR NORMAL RESPONSE
+    // STEP 12: STREAM OR NORMAL RESPONSE
     // ======================================
 
     if (shouldStream) {
@@ -670,7 +799,7 @@ async function askRAG(
     answer = answer.trim();
 
     // ======================================
-    // STEP 12: HANDLE EMPTY ANSWER
+    // STEP 13: HANDLE EMPTY ANSWER
     // ======================================
 
     if (!answer) {
@@ -678,7 +807,7 @@ async function askRAG(
     }
 
     // ======================================
-    // STEP 13: RETURN ANSWER + REFERENCES
+    // STEP 14: RETURN ANSWER + REFERENCES
     // ======================================
 
     const sources = buildSources(relevantResults);
@@ -691,27 +820,6 @@ async function askRAG(
         answer,
         sources
     };
-}
-
-// ==========================================
-// GET AVAILABLE SOURCES
-// ==========================================
-
-function getAvailableSources(tenantId) {
-    tenantId = validateTenantId(tenantId);
-
-    const documents = getDocuments(tenantId)
-        .filter(doc => doc.tenantId === tenantId);
-
-    const sources = [
-        ...new Set(
-            documents
-                .map(doc => doc.source)
-                .filter(Boolean)
-        )
-    ];
-
-    return sources;
 }
 
 // ==========================================
