@@ -16,7 +16,7 @@ let activeDocumentSource =
 // BACKEND CONFIGURATION
 // ==========================================
 
-const BACKEND_URL = "https://bedrooms-graphical-exciting-friends.trycloudflare.com";
+const BACKEND_URL = "https://universal-earned-budget-spoken.trycloudflare.com";
 
 const STREAM_URL = `${BACKEND_URL}/local/rag-chat/stream`;
 
