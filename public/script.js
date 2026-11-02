@@ -16,7 +16,8 @@ let activeDocumentSource =
 // BACKEND CONFIGURATION
 // ==========================================
 
-const BACKEND_URL = "https://tier-findlaw-enlargement-selecting.trycloudflare.com";
+const BACKEND_URL = "https://joe-modeling-johnston-suits.trycloudflare.com";
+
 
 const STREAM_URL = `${BACKEND_URL}/local/rag-chat/stream`;
 
