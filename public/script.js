@@ -9,6 +9,8 @@ const sendBtn = document.getElementById("sendBtn");
 const welcomeScreen = document.getElementById("welcomeScreen");
 
 const conversationHistory = [];
+let activeDocumentSource =
+    sessionStorage.getItem("activeDocumentSource") || "all";
 
 // ==========================================
 // BACKEND CONFIGURATION
@@ -357,7 +359,7 @@ async function sendMessage() {
 
             body: JSON.stringify({
                 question,
-                source: "all",
+                source: activeDocumentSource,
                 messages: conversationHistory
             })
         });
@@ -523,3 +525,110 @@ questionInput.addEventListener("keydown", function(event) {
 // ==========================================
 
 sendBtn.addEventListener("click", sendMessage);
+
+// ==========================================
+// PDF UPLOAD
+// ==========================================
+
+const pdfFileInput = document.getElementById("pdfFile");
+const uploadPdfBtn = document.getElementById("uploadPdfBtn");
+const selectedFileName = document.getElementById("selectedFileName");
+const uploadStatus = document.getElementById("uploadStatus");
+
+const PDF_UPLOAD_URL = `${BACKEND_URL}/local/upload-pdf`;
+
+if (
+    pdfFileInput &&
+    uploadPdfBtn &&
+    selectedFileName &&
+    uploadStatus
+) {
+    // Open PDF file selector
+    uploadPdfBtn.addEventListener("click", () => {
+        pdfFileInput.click();
+    });
+
+    // Upload selected PDF
+    pdfFileInput.addEventListener("change", async () => {
+        const file = pdfFileInput.files[0];
+
+        if (!file) return;
+
+        // Validate PDF extension
+        if (!file.name.toLowerCase().endsWith(".pdf")) {
+            uploadStatus.textContent = "Please select a PDF file.";
+            uploadStatus.className = "upload-status error";
+            pdfFileInput.value = "";
+            return;
+        }
+
+        // Backend currently supports a maximum of 10 MB
+        if (file.size > 10 * 1024 * 1024) {
+            uploadStatus.textContent = "PDF size must not exceed 10 MB.";
+            uploadStatus.className = "upload-status error";
+            pdfFileInput.value = "";
+            return;
+        }
+
+        selectedFileName.textContent = file.name;
+
+        uploadPdfBtn.disabled = true;
+        uploadStatus.textContent = "Uploading and processing PDF...";
+        uploadStatus.className = "upload-status";
+
+        try {
+            const formData = new FormData();
+
+            formData.append("pdf", file);
+
+            const response = await fetch(PDF_UPLOAD_URL, {
+                method: "POST",
+
+                headers: {
+                    "Authorization": `Bearer ${getChatAccessToken()}`
+                },
+
+                body: formData
+            });
+
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    sessionStorage.removeItem("chatAccessToken");
+                }
+
+                throw new Error(
+                    result.error || `Upload failed: ${response.status}`
+                );
+            }
+
+            // Make this PDF the active source for chat questions
+activeDocumentSource = file.name;
+
+sessionStorage.setItem(
+    "activeDocumentSource",
+    activeDocumentSource
+);
+
+uploadStatus.textContent =
+    `✓ ${file.name} uploaded and indexed successfully. Questions will now use this PDF.`;
+
+uploadStatus.className = "upload-status success";
+
+console.log("PDF ingestion completed:", result);
+
+        } catch (error) {
+            console.error("PDF UPLOAD ERROR:", error);
+
+            uploadStatus.textContent = error.message;
+            uploadStatus.className = "upload-status error";
+
+        } finally {
+            uploadPdfBtn.disabled = false;
+
+            // Allow selecting the same file again
+            pdfFileInput.value = "";
+        }
+    });
+}
