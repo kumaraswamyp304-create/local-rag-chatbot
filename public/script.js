@@ -14,7 +14,7 @@ const conversationHistory = [];
 // BACKEND CONFIGURATION
 // ==========================================
 
-const BACKEND_URL = "https://artists-passes-menu-somehow.trycloudflare.com";
+const BACKEND_URL = "https://bedrooms-graphical-exciting-friends.trycloudflare.com";
 
 const STREAM_URL = `${BACKEND_URL}/local/rag-chat/stream`;
 
