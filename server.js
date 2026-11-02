@@ -1,3 +1,4 @@
+require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
@@ -13,20 +14,12 @@ const {
     getAvailableSources
 } = require("./rag/rag");
 
-const {
-    ingestPDF
-} = require("./rag/ingest");
-
-const {
-    ingestWebsite
-} = require("./rag/ingestWeb");
-
-const {
-    validateApiKey
-} = require("./auth/apiKeys");
+const { ingestPDF } = require("./rag/ingest");
+const { ingestWebsite } = require("./rag/ingestWeb");
+const { validateApiKey } = require("./auth/apiKeys");
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 const IS_DEVELOPMENT =
     process.env.NODE_ENV !== "production";
@@ -37,17 +30,19 @@ const LOCAL_TENANT = "default";
 // GENERAL MIDDLEWARE
 // ==========================================
 
-app.use(cors());
+app.use(cors({
+    origin: "https://demochatbot2.netlify.app",
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+}));
 
 app.use(express.json({
     limit: "1mb"
 }));
 
-app.use(
-    express.static(
-        path.join(__dirname, "public")
-    )
-);
+app.use(express.static(
+    path.join(__dirname, "public")
+));
 
 // ==========================================
 // API KEY AUTHENTICATION
@@ -94,6 +89,44 @@ function resolveLocalTenant(req, res, next) {
 }
 
 // ==========================================
+// SHARED FRIEND ACCESS AUTHENTICATION
+// ==========================================
+
+const CHAT_ACCESS_TOKEN = process.env.CHAT_ACCESS_TOKEN;
+
+function requireSharedToken(req, res, next) {
+    if (!CHAT_ACCESS_TOKEN) {
+        return res.status(500).json({
+            error: "Chat access password is not configured."
+        });
+    }
+
+    const authorization = req.get("Authorization") || "";
+
+    if (!authorization.startsWith("Bearer ")) {
+        return res.status(401).json({
+            error: "Please enter the chatbot access password."
+        });
+    }
+
+    const suppliedToken = authorization.slice(7).trim();
+
+    const expected = Buffer.from(CHAT_ACCESS_TOKEN);
+    const supplied = Buffer.from(suppliedToken);
+
+    if (
+        supplied.length !== expected.length ||
+        !crypto.timingSafeEqual(supplied, expected)
+    ) {
+        return res.status(401).json({
+            error: "Incorrect chatbot access password."
+        });
+    }
+
+    next();
+}
+
+// ==========================================
 // OLLAMA CONFIGURATION
 // ==========================================
 
@@ -127,7 +160,6 @@ async function streamRagResponse(req, res, tenantId) {
         messages = []
     } = req.body;
 
-    // Validate question
     if (
         typeof question !== "string" ||
         !question.trim()
@@ -137,7 +169,6 @@ async function streamRagResponse(req, res, tenantId) {
         });
     }
 
-    // Validate messages
     if (!Array.isArray(messages)) {
         return res.status(400).json({
             error: "Messages must be an array."
@@ -148,7 +179,6 @@ async function streamRagResponse(req, res, tenantId) {
     console.log("Tenant:", tenantId);
     console.log("Question:", question);
 
-    // Configure SSE headers
     res.status(200).set({
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
@@ -160,8 +190,6 @@ async function streamRagResponse(req, res, tenantId) {
 
     let clientDisconnected = false;
 
-    // Detect actual response disconnection.
-    // A normally completed response is not a disconnect.
     res.on("close", () => {
         if (!res.writableEnded) {
             clientDisconnected = true;
@@ -169,7 +197,6 @@ async function streamRagResponse(req, res, tenantId) {
         }
     });
 
-    // Send SSE event
     function sendEvent(eventName, data) {
         if (
             clientDisconnected ||
@@ -190,7 +217,6 @@ async function streamRagResponse(req, res, tenantId) {
     try {
         console.log("Starting RAG generation...");
 
-        // Call existing RAG pipeline with streaming callback
         const result = await askRAG(
             question,
             source,
@@ -213,13 +239,11 @@ async function streamRagResponse(req, res, tenantId) {
             result.answer?.length || 0
         );
 
-        // Send final answer and sources
         sendEvent("complete", {
             answer: result.answer,
             sources: result.sources || []
         });
 
-        // Finish response
         if (!res.writableEnded && !res.destroyed) {
             res.end();
         }
@@ -302,13 +326,12 @@ const upload = multer({
         cb(null, true);
     }
 });
-
 // ==========================================
 // NORMAL CHAT
 // NDJSON STREAMING
 // ==========================================
 
-app.post("/chat", async (req, res) => {
+app.post("/chat", requireSharedToken, async (req, res) => {
     try {
         const { messages } = req.body;
 
@@ -618,6 +641,11 @@ app.post(
     }
 );
 
+// ==========================================
+// SHARED PASSWORD PROTECTION FOR LOCAL ROUTES
+// ==========================================
+
+app.use("/local", requireSharedToken);
 // ==========================================
 // LOCAL CHATBOT RAG
 // DEVELOPMENT ONLY

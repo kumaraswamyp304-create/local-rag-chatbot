@@ -10,7 +10,34 @@ const welcomeScreen = document.getElementById("welcomeScreen");
 
 const conversationHistory = [];
 
-const STREAM_URL = "/local/rag-chat/stream";
+// ==========================================
+// BACKEND CONFIGURATION
+// ==========================================
+
+const BACKEND_URL = "https://artists-passes-menu-somehow.trycloudflare.com";
+
+const STREAM_URL = `${BACKEND_URL}/local/rag-chat/stream`;
+
+// ==========================================
+// CHAT ACCESS PASSWORD
+// ==========================================
+
+function getChatAccessToken() {
+    let token = sessionStorage.getItem("chatAccessToken");
+
+    if (!token) {
+        token = prompt("Enter chatbot access password:");
+
+        if (!token || !token.trim()) {
+            throw new Error("Chatbot access password is required.");
+        }
+
+        token = token.trim();
+        sessionStorage.setItem("chatAccessToken", token);
+    }
+
+    return token;
+}
 
 // ==========================================
 // ESCAPE HTML
@@ -324,7 +351,8 @@ async function sendMessage() {
             method: "POST",
 
             headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${getChatAccessToken()}`
             },
 
             body: JSON.stringify({
@@ -337,6 +365,11 @@ async function sendMessage() {
         // Handle HTTP errors before reading SSE
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
+
+            // Ask for the password again if it is incorrect
+            if (response.status === 401) {
+                sessionStorage.removeItem("chatAccessToken");
+            }
 
             throw new Error(
                 errorData.error ||
