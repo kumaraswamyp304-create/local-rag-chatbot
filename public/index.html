@@ -17,7 +17,8 @@
     </button>
 
     <!-- Chat window -->
-    <section id="chatWidget" class="chat-widget" aria-label="Virtual assistant" aria-hidden="true">
+    <section id="chatWidget" class="chat-widget"
+        aria-label="Virtual assistant" aria-hidden="true">
 
         <header class="chat-header">
             <div class="assistant-title">
@@ -55,7 +56,14 @@
         </main>
 
         <footer class="chat-footer">
+
+            <!-- PDF upload status -->
+            <div id="uploadStatus" class="upload-status"
+                role="status" aria-live="polite"></div>
+
+            <!-- Input area -->
             <div class="input-area">
+
                 <input
                     id="question"
                     type="text"
@@ -63,8 +71,29 @@
                     autocomplete="off"
                     aria-label="Type your message"
                 >
-                <button id="sendBtn" type="button" aria-label="Send message">➤</button>
+
+                <button id="sendBtn" type="button"
+                    aria-label="Send message">➤</button>
             </div>
+
+            <!-- PDF upload area -->
+            <div class="upload-area">
+                <input
+                    id="pdfFile"
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    hidden
+                >
+
+                <button id="uploadPdfBtn" type="button">
+                    📎 Upload PDF
+                </button>
+
+                <span id="selectedFileName">
+                    No document selected
+                </span>
+            </div>
+
             <p class="footer-note">Powered by Local AI</p>
         </footer>
     </section>
@@ -92,12 +121,17 @@
             }
 
             launcher.addEventListener("click", openChat);
-            document.getElementById("closeChat").addEventListener("click", closeChat);
-            document.getElementById("minimizeChat").addEventListener("click", closeChat);
 
-            document.getElementById("expandChat").addEventListener("click", () => {
-                widget.classList.toggle("expanded");
-            });
+            document.getElementById("closeChat")
+                .addEventListener("click", closeChat);
+
+            document.getElementById("minimizeChat")
+                .addEventListener("click", closeChat);
+
+            document.getElementById("expandChat")
+                .addEventListener("click", () => {
+                    widget.classList.toggle("expanded");
+                });
         })();
     </script>
 
