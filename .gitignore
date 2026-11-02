@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# API credentials
+auth/api-keys.json
+
+# Uploaded documents
+uploads/*
+!uploads/.gitkeep
+
+# RAG data - preserve locally, migrate separately
+rag/vector-store.json
+rag/vector-store.backup-*.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# Backups
+*.backup
+
+# macOS
+.DS_Store
+.AppleDouble

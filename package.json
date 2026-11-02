@@ -1,0 +1,23 @@
+{
+  "name": "localchatbot",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "fast-xml-parser": "^5.11.2",
+    "multer": "^2.2.0",
+    "ollama": "^0.6.3",
+    "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.20.2"
+  }
+}

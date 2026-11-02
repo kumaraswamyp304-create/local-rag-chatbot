@@ -1,0 +1,495 @@
+
+/* ==========================================
+   LOCAL AI CHATBOT - STREAMING VERSION
+========================================== */
+
+const chat = document.getElementById("chat");
+const questionInput = document.getElementById("question");
+const sendBtn = document.getElementById("sendBtn");
+const welcomeScreen = document.getElementById("welcomeScreen");
+
+const conversationHistory = [];
+
+const STREAM_URL = "/local/rag-chat/stream";
+
+// ==========================================
+// ESCAPE HTML
+// ==========================================
+
+function escapeHtml(value) {
+    const div = document.createElement("div");
+    div.textContent = String(value ?? "");
+    return div.innerHTML;
+}
+
+// ==========================================
+// MARKDOWN RENDERING + SANITIZATION
+// ==========================================
+
+function renderMarkdown(text) {
+    if (!text) return "";
+
+    if (typeof marked === "undefined") {
+        return `<p>${escapeHtml(text).replace(/\n/g, "<br>")}</p>`;
+    }
+
+    let content = String(text).trim();
+
+    // Remove accidental outer Markdown fences.
+    const outerFence = content.match(
+        /^```(?:markdown|md|text)\s*\r?\n([\s\S]*?)\r?\n```\s*$/i
+    );
+
+    if (outerFence) {
+        content = outerFence[1].trim();
+    }
+
+    const html = marked.parse(content, {
+        gfm: true,
+        breaks: true
+    });
+
+    if (window.DOMPurify) {
+        return DOMPurify.sanitize(html, {
+            USE_PROFILES: {
+                html: true
+            },
+            FORBID_TAGS: [
+                "script",
+                "style",
+                "iframe",
+                "object",
+                "embed",
+                "form"
+            ]
+        });
+    }
+
+    // Safe fallback if DOMPurify is unavailable.
+    return `<p>${escapeHtml(content).replace(/\n/g, "<br>")}</p>`;
+}
+
+// ==========================================
+// CONVERT MARKDOWN TO PLAIN TEXT
+// ==========================================
+
+function markdownToText(markdown) {
+    const element = document.createElement("div");
+
+    element.innerHTML = renderMarkdown(markdown);
+
+    return element.textContent || "";
+}
+
+// ==========================================
+// VALIDATE REFERENCE URL
+// ==========================================
+
+function validateReferenceUrl(value) {
+    if (typeof value !== "string" || !value.trim()) {
+        return null;
+    }
+
+    try {
+        const url = new URL(value);
+
+        if (!["http:", "https:"].includes(url.protocol)) {
+            return null;
+        }
+
+        return url.href;
+
+    } catch {
+        return null;
+    }
+}
+
+// ==========================================
+// DISPLAY REFERENCES
+// ==========================================
+
+function addReferences(messageContent, sources = []) {
+    if (!Array.isArray(sources)) return;
+
+    const uniqueSources = new Map();
+
+    for (const source of sources) {
+        if (!source || typeof source !== "object") continue;
+
+        const url = validateReferenceUrl(source.url);
+
+        if (!url) continue;
+
+        if (!uniqueSources.has(url)) {
+            uniqueSources.set(url, {
+                title: source.title || source.source || "Reference",
+                url
+            });
+        }
+    }
+
+    if (uniqueSources.size === 0) return;
+
+    const referenceContainer = document.createElement("section");
+
+    referenceContainer.className = "message-references";
+
+    const heading = document.createElement("h4");
+
+    heading.textContent = "References";
+
+    referenceContainer.appendChild(heading);
+
+    const list = document.createElement("ul");
+
+    for (const source of uniqueSources.values()) {
+        const item = document.createElement("li");
+
+        const link = document.createElement("a");
+
+        link.href = source.url;
+        link.textContent = source.title;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+
+        item.appendChild(link);
+
+        list.appendChild(item);
+    }
+
+    referenceContainer.appendChild(list);
+
+    messageContent.appendChild(referenceContainer);
+}
+
+// ==========================================
+// CREATE MESSAGE
+// ==========================================
+
+function createMessage(role) {
+    welcomeScreen.style.display = "none";
+
+    const message = document.createElement("article");
+
+    message.className =
+        role === "user"
+            ? "message user-message"
+            : "message ai-message";
+
+    const header = document.createElement("div");
+
+    header.className = "message-header";
+
+    header.textContent =
+        role === "user"
+            ? "You"
+            : "🤖 Assistant";
+
+    const body = document.createElement("div");
+
+    body.className = "message-content";
+
+    if (role === "ai") {
+        body.classList.add("markdown-content");
+    }
+
+    message.appendChild(header);
+    message.appendChild(body);
+
+    chat.appendChild(message);
+
+    chat.scrollTop = chat.scrollHeight;
+
+    return {
+        message,
+        body
+    };
+}
+
+// ==========================================
+// ADD MESSAGE
+// ==========================================
+
+function addMessage(role, content, sources = []) {
+    const result = createMessage(role);
+
+    if (role === "user") {
+        result.body.textContent = content || "";
+    } else {
+        result.body.innerHTML = renderMarkdown(content);
+
+        addReferences(result.body, sources);
+    }
+
+    chat.scrollTop = chat.scrollHeight;
+
+    return result.message;
+}
+
+// ==========================================
+// LOADING INDICATOR
+// ==========================================
+
+function showLoading() {
+    const result = createMessage("ai");
+
+    result.body.innerHTML = `
+        <div class="loading-dots" aria-label="Assistant is thinking">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    `;
+
+    return result.message;
+}
+
+// ==========================================
+// PROCESS SSE EVENT
+// ==========================================
+
+function processSSEEvent(eventBlock, state, messageContent) {
+    const lines = eventBlock.split(/\r?\n/);
+
+    let eventName = "message";
+
+    const dataLines = [];
+
+    for (const line of lines) {
+        if (line.startsWith("event:")) {
+            eventName = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+            dataLines.push(line.slice(5).trim());
+        }
+    }
+
+    if (dataLines.length === 0) return;
+
+    let data;
+
+    try {
+        data = JSON.parse(dataLines.join("\n"));
+    } catch (error) {
+        console.error("Invalid SSE data:", error);
+        return;
+    }
+
+    // Incoming generated token.
+    if (eventName === "token") {
+        state.answer += data.content || "";
+
+        // Display chunks immediately as plain text.
+        messageContent.textContent = state.answer;
+
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    // Final response and references.
+    if (eventName === "complete") {
+        state.completed = true;
+
+        if (typeof data.answer === "string") {
+            state.answer = data.answer;
+        }
+
+        state.sources = Array.isArray(data.sources)
+            ? data.sources
+            : [];
+    }
+
+    // Server-side error.
+    if (eventName === "error") {
+        state.error = data.error || "Streaming failed.";
+    }
+}
+
+// ==========================================
+// SEND MESSAGE - STREAMING
+// ==========================================
+
+async function sendMessage() {
+    const question = questionInput.value.trim();
+
+    if (!question || sendBtn.disabled) return;
+
+    // Display user question.
+    addMessage("user", question);
+
+    questionInput.value = "";
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = "…";
+
+    const loading = showLoading();
+
+    try {
+        const response = await fetch(STREAM_URL, {
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                question,
+                source: "all",
+                messages: conversationHistory
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+
+            throw new Error(
+                `Request failed: ${response.status} ${errorText}`
+            );
+        }
+
+        if (!response.body) {
+            throw new Error(
+                "Streaming is not supported by this browser."
+            );
+        }
+
+        // Create assistant response.
+        const assistant = createMessage("ai");
+
+        loading.remove();
+
+        const state = {
+            answer: "",
+            sources: [],
+            completed: false,
+            error: null
+        };
+
+        const reader = response.body.getReader();
+
+        const decoder = new TextDecoder();
+
+        let buffer = "";
+
+        // Read incoming response chunks.
+        while (true) {
+            const { value, done } = await reader.read();
+
+            if (done) break;
+
+            buffer += decoder.decode(value, {
+                stream: true
+            });
+
+            const events = buffer.split(/\r?\n\r?\n/);
+
+            buffer = events.pop() || "";
+
+            for (const eventBlock of events) {
+                processSSEEvent(
+                    eventBlock,
+                    state,
+                    assistant.body
+                );
+            }
+
+            if (state.error) {
+                throw new Error(state.error);
+            }
+        }
+
+        // Process any remaining decoder data.
+        buffer += decoder.decode();
+
+        if (buffer.trim()) {
+            processSSEEvent(
+                buffer,
+                state,
+                assistant.body
+            );
+        }
+
+        if (state.error) {
+            throw new Error(state.error);
+        }
+
+        if (!state.completed) {
+            throw new Error(
+                "The streaming response ended unexpectedly."
+            );
+        }
+
+        // ==================================
+        // FINAL MARKDOWN RENDERING
+        // ==================================
+
+        const finalAnswer =
+            state.answer.trim() ||
+            "I couldn't generate an answer.";
+
+        assistant.body.innerHTML = renderMarkdown(finalAnswer);
+
+        // Add verified references.
+        addReferences(
+            assistant.body,
+            state.sources
+        );
+
+        // ==================================
+        // SAVE CONVERSATION HISTORY
+        // ==================================
+
+        conversationHistory.push(
+            {
+                role: "user",
+                content: question
+            },
+            {
+                role: "assistant",
+                content: markdownToText(finalAnswer)
+            }
+        );
+
+        // Keep latest 10 messages.
+        if (conversationHistory.length > 10) {
+            conversationHistory.splice(
+                0,
+                conversationHistory.length - 10
+            );
+        }
+
+        chat.scrollTop = chat.scrollHeight;
+
+    } catch (error) {
+        console.error("STREAMING CHAT ERROR:", error);
+
+        loading.remove();
+
+        addMessage(
+            "ai",
+            `Sorry, I encountered an error: ${error.message}`
+        );
+
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = "➤";
+
+        questionInput.focus();
+    }
+}
+
+// ==========================================
+// ENTER KEY
+// ==========================================
+
+questionInput.addEventListener("keydown", function(event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+
+        sendMessage();
+    }
+});
+
+// ==========================================
+// SEND BUTTON
+// ==========================================
+
+sendBtn.addEventListener("click", sendMessage);

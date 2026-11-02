@@ -1,0 +1,106 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#c8102e">
+    <title>Virtual Assistant</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Floating launcher -->
+    <button id="chatLauncher" class="chat-launcher" type="button">
+        <span class="launcher-icon">✦</span>
+        <span class="launcher-label">Chat with us</span>
+    </button>
+
+    <!-- Chat window -->
+    <section id="chatWidget" class="chat-widget" aria-label="Virtual assistant" aria-hidden="true">
+
+        <header class="chat-header">
+            <div class="assistant-title">
+                <div class="assistant-avatar">AI</div>
+                <div class="assistant-info">
+                    <h2>Virtual Assistant</h2>
+                    <span class="online-status">
+                        <span class="status-dot"></span> Online
+                    </span>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <button id="expandChat" title="Expand chat">⛶</button>
+                <button id="minimizeChat" title="Minimize chat">−</button>
+                <button id="closeChat" title="Close chat">×</button>
+            </div>
+        </header>
+
+        <main class="chat-body">
+            <div id="welcomeScreen" class="welcome-screen">
+                <div class="welcome-avatar">✦</div>
+                <div class="welcome-card">
+                    <h3>Hey there! 👋</h3>
+                    <p>
+                        Welcome! I'm your virtual assistant.
+                        I'm here to help you find information
+                        and answer your questions.
+                    </p>
+                    <p class="welcome-prompt">How can I help you today?</p>
+                </div>
+            </div>
+
+            <div id="chat" class="chat" aria-live="polite"></div>
+        </main>
+
+        <footer class="chat-footer">
+            <div class="input-area">
+                <input
+                    id="question"
+                    type="text"
+                    placeholder="Type your message here..."
+                    autocomplete="off"
+                    aria-label="Type your message"
+                >
+                <button id="sendBtn" type="button" aria-label="Send message">➤</button>
+            </div>
+            <p class="footer-note">Powered by Local AI</p>
+        </footer>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+
+    <script>
+        (() => {
+            const launcher = document.getElementById("chatLauncher");
+            const widget = document.getElementById("chatWidget");
+            const questionInput = document.getElementById("question");
+
+            function openChat() {
+                widget.classList.add("open");
+                launcher.classList.add("hidden");
+                widget.setAttribute("aria-hidden", "false");
+                questionInput.focus();
+            }
+
+            function closeChat() {
+                widget.classList.remove("open", "expanded");
+                launcher.classList.remove("hidden");
+                widget.setAttribute("aria-hidden", "true");
+            }
+
+            launcher.addEventListener("click", openChat);
+            document.getElementById("closeChat").addEventListener("click", closeChat);
+            document.getElementById("minimizeChat").addEventListener("click", closeChat);
+
+            document.getElementById("expandChat").addEventListener("click", () => {
+                widget.classList.toggle("expanded");
+            });
+        })();
+    </script>
+
+    <script src="script.js"></script>
+</body>
+</html>

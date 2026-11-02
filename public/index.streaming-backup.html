@@ -1,0 +1,283 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#c8102e">
+
+    <title>Virtual Assistant</title>
+
+    <!-- Chat styling -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Floating Chat Launcher -->
+    <button
+        id="chatLauncher"
+        class="chat-launcher"
+        type="button"
+        aria-label="Open virtual assistant"
+    >
+        <span class="launcher-icon">✦</span>
+        <span class="launcher-label">Chat with us</span>
+    </button>
+
+
+    <!-- Chat Widget -->
+    <section
+        id="chatWidget"
+        class="chat-widget"
+        aria-label="Virtual assistant"
+        aria-hidden="true"
+    >
+
+        <!-- Header -->
+        <header class="chat-header">
+
+            <div class="assistant-title">
+
+                <div class="assistant-avatar">
+                    AI
+                </div>
+
+                <div class="assistant-info">
+
+                    <h2>Virtual Assistant</h2>
+
+                    <span class="online-status">
+                        <span class="status-dot"></span>
+                        Online
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <!-- Header Controls -->
+            <div class="header-actions">
+
+                <button
+                    id="expandChat"
+                    type="button"
+                    title="Expand chat"
+                    aria-label="Expand chat"
+                >
+                    ⛶
+                </button>
+
+                <button
+                    id="minimizeChat"
+                    type="button"
+                    title="Minimize chat"
+                    aria-label="Minimize chat"
+                >
+                    −
+                </button>
+
+                <button
+                    id="closeChat"
+                    type="button"
+                    title="Close chat"
+                    aria-label="Close chat"
+                >
+                    ×
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <!-- Chat Body -->
+        <main class="chat-body">
+
+            <!-- Welcome Screen -->
+            <div
+                id="welcomeScreen"
+                class="welcome-screen"
+            >
+
+                <div class="welcome-avatar">
+                    ✦
+                </div>
+
+                <div class="welcome-heading">
+
+                    <h3>Hey there! 👋</h3>
+
+                    <p>
+                        Welcome! I'm your virtual assistant.
+                        I'm here to help you find information
+                        and answer your questions.
+                    </p>
+
+                    <p class="welcome-prompt">
+                        How can I help you today?
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- Conversation Messages -->
+            <div
+                id="chat"
+                class="chat"
+                aria-live="polite"
+            ></div>
+
+        </main>
+
+
+        <!-- Message Input -->
+        <footer class="chat-footer">
+
+            <div class="input-area">
+
+                <input
+                    id="question"
+                    type="text"
+                    placeholder="Type your message here..."
+                    autocomplete="off"
+                    aria-label="Type your message"
+                >
+
+                <button
+                    id="sendBtn"
+                    type="button"
+                    aria-label="Send message"
+                >
+                    ➤
+                </button>
+
+            </div>
+
+            <p class="footer-note">
+                Powered by Local AI
+            </p>
+
+        </footer>
+
+    </section>
+
+
+    <!-- ======================================
+         MARKDOWN AND HTML SANITIZATION
+    ======================================= -->
+
+    <!-- Convert Markdown into HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Sanitize generated HTML for security -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+
+
+    <!-- ======================================
+         CHAT WINDOW CONTROLS
+    ======================================= -->
+
+    <script>
+        (() => {
+
+            const launcher =
+                document.getElementById("chatLauncher");
+
+            const widget =
+                document.getElementById("chatWidget");
+
+            const questionInput =
+                document.getElementById("question");
+
+
+            // Open chat
+            function openChat() {
+
+                widget.classList.add("open");
+
+                launcher.classList.add("hidden");
+
+                widget.setAttribute(
+                    "aria-hidden",
+                    "false"
+                );
+
+                questionInput.focus();
+
+            }
+
+
+            // Close chat
+            function closeChat() {
+
+                widget.classList.remove(
+                    "open",
+                    "expanded"
+                );
+
+                launcher.classList.remove("hidden");
+
+                widget.setAttribute(
+                    "aria-hidden",
+                    "true"
+                );
+
+            }
+
+
+            // Launcher click
+            launcher.addEventListener(
+                "click",
+                openChat
+            );
+
+
+            // Close button
+            document
+                .getElementById("closeChat")
+                .addEventListener(
+                    "click",
+                    closeChat
+                );
+
+
+            // Minimize button
+            document
+                .getElementById("minimizeChat")
+                .addEventListener(
+                    "click",
+                    closeChat
+                );
+
+
+            // Expand button
+            document
+                .getElementById("expandChat")
+                .addEventListener(
+                    "click",
+                    () => {
+
+                        widget.classList.toggle(
+                            "expanded"
+                        );
+
+                    }
+                );
+
+        })();
+    </script>
+
+
+    <!-- ======================================
+         APPLICATION JAVASCRIPT
+         Streaming RAG + Markdown Rendering
+    ======================================= -->
+
+    <script src="script.js"></script>
+
+</body>
+</html>
