@@ -16,7 +16,12 @@ const ollama = new Ollama({
 // ==========================================
 
 const TOP_K = 6;
+
+// Existing threshold for website and other documents
 const MIN_RELEVANCE_SCORE = 0.55;
+
+// Separate threshold for uploaded PDFs
+const PDF_MIN_RELEVANCE_SCORE = 0.30;
 
 const MAX_HISTORY_MESSAGES = 10;
 const NEIGHBOR_WINDOW = 1;
@@ -668,12 +673,22 @@ async function askRAG(
     // STEP 6: RELEVANCE FILTER
     // ======================================
 
-    const relevantResults = searchResults.filter(
-        result =>
-            typeof result.score === "number" &&
-            Number.isFinite(result.score) &&
-            result.score >= MIN_RELEVANCE_SCORE
-    );
+    const relevantResults = searchResults.filter(result => {
+        if (
+            typeof result.score !== "number" ||
+            !Number.isFinite(result.score)
+        ) {
+            return false;
+        }
+    
+        // Use a separate threshold for uploaded PDFs
+        const minimumScore =
+            result.sourceType === "pdf"
+                ? PDF_MIN_RELEVANCE_SCORE
+                : MIN_RELEVANCE_SCORE;
+    
+        return result.score >= minimumScore;
+    });
 
     console.log(
         "Relevant documents:",
