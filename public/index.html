@@ -45,10 +45,12 @@
                     <h3>Hey there! 👋</h3>
                     <p>
                         Welcome! I'm your virtual assistant.
-                        I'm here to help you find information
-                        and answer your questions.
+                        Upload a document and ask me questions
+                        to find the information you need.
                     </p>
-                    <p class="welcome-prompt">How can I help you today?</p>
+                    <p class="welcome-prompt">
+                        How can I help you today?
+                    </p>
                 </div>
             </div>
 
@@ -61,22 +63,7 @@
             <div id="uploadStatus" class="upload-status"
                 role="status" aria-live="polite"></div>
 
-            <!-- Input area -->
-            <div class="input-area">
-
-                <input
-                    id="question"
-                    type="text"
-                    placeholder="Type your message here..."
-                    autocomplete="off"
-                    aria-label="Type your message"
-                >
-
-                <button id="sendBtn" type="button"
-                    aria-label="Send message">➤</button>
-            </div>
-
-            <!-- PDF upload area -->
+            <!-- PDF upload area - moved above message input -->
             <div class="upload-area">
                 <input
                     id="pdfFile"
@@ -86,12 +73,27 @@
                 >
 
                 <button id="uploadPdfBtn" type="button">
-                    📎 Upload PDF
+                    📎 Upload / Change PDF
                 </button>
 
                 <span id="selectedFileName">
                     No document selected
                 </span>
+            </div>
+
+            <!-- Message input area -->
+            <div class="input-area">
+
+                <input
+                    id="question"
+                    type="text"
+                    placeholder="Ask a question about your uploaded document..."
+                    autocomplete="off"
+                    aria-label="Ask a question about your document"
+                >
+
+                <button id="sendBtn" type="button"
+                    aria-label="Send message">➤</button>
             </div>
 
             <p class="footer-note">Powered by Local AI</p>
