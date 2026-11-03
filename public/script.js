@@ -16,8 +16,7 @@ let activeDocumentSource =
 // BACKEND CONFIGURATION
 // ==========================================
 
-const BACKEND_URL = "https://joe-modeling-johnston-suits.trycloudflare.com";
-
+const BACKEND_URL = "https://classifieds-curve-agents-screen.trycloudflare.com";
 
 const STREAM_URL = `${BACKEND_URL}/local/rag-chat/stream`;
 
