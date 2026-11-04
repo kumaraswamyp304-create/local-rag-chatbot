@@ -16,7 +16,7 @@ let activeDocumentSource =
 // BACKEND CONFIGURATION
 // ==========================================
 
-const BACKEND_URL = "https://enabling-network-cook-self.trycloudflare.com";
+const BACKEND_URL = "https://blvd-diffs-knights-accordance.trycloudflare.com";
 
 const STREAM_URL = `${BACKEND_URL}/local/rag-chat/stream`;
 
