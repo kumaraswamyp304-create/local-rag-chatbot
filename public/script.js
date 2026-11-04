@@ -16,7 +16,7 @@ let activeDocumentSource =
 // BACKEND CONFIGURATION
 // ==========================================
 
-const BACKEND_URL = "https://blvd-diffs-knights-accordance.trycloudflare.com";
+const BACKEND_URL = " https://listprice-blast-often-transform.trycloudflare.com";
 
 const STREAM_URL = `${BACKEND_URL}/local/rag-chat/stream`;
 
